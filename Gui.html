@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <!-- The CSS package above applies Google styling to buttons and other elements. -->
+
+    <style>
+    .width-75 {
+      width: 75%;
+    }
+
+    .centered{
+    display: block;
+    margin: 10%;
+    }
+    .width-100 {
+      width: 100%;
+    }
+    #ids-div {
+    display: none;
+    }
+    input {
+    margin-bottom: 30%;
+    }
+    input[type=text]{
+    height: auto;
+    font-size: large;
+    }
+    label.input-label{
+    font-size: medium;
+    margin-bottom: 20%;
+    }
+    #name-div{
+    display:none;
+    }
+    button{
+    font-size: medium;
+    }
+    .feedback
+    {
+    font-size: large;
+    }
+    </style>
+  </head>
+  <body>
+
+        <div class="centered" id="event-div">
+          <div class="block" >
+             <label class="input-label"><b>Event Name</b></label>
+             <input type="text" class="width-75" id="event-name" maxlength="16" >
+          </div>
+          <div class="block" >
+           <input type="button" class="action" id="eventSubmit" value="Create Event">
+           <input type="button" id="useSelection" value="Use Selection">
+           <div id="event-error" class="error centered"></div>
+          </div>
+        </div>
+
+        <div class="centered" id="ids-div">
+          <div class="block">
+            <label class="feedback" id="label-bold">
+            <b>Start swiping for statistics</b>
+            </label>
+          </div>
+          <div class="block" >
+             <label class="input-label" id="id-label"><b>ID Number</b></label>
+             <input type="text" class="width-75" id="id-number" maxlength="16">
+          </div>
+          <div class="block" >
+             <input type="button" class="action" id="idSubmit" value="Submit">
+             <div id="id-error" class="error centered"></div>
+             <input type="hidden" name="event-name" id="id-event-name">
+          </div>
+        </div>
+
+        <div class="centered" id="name-div">
+          <div class="block" >
+             <label class="input-label" ><b>Name to Add</b></label>
+             <input type="text" class="width-75" id="name" maxlength="16">
+          </div>
+          <div class="block" >
+             <input type="button" class="action name" id="nameSubmit" value="Add">
+             <input type="button" class="name"id="nameCancel" value="Cancel">
+             <div id="name-error" class="error centered"></div>
+          </div>
+        </div>
+
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
+    </script>
+    <script>
+    $(document).ready(function(){
+       $('#event-name').val("");
+       $('#ids-div').hide();
+    });
+    function adder()
+    {
+       $('#event-div').children('input').prop('disabled', true);
+       google.script.run.withSuccessHandler(eventCreateSuccess).withFailureHandler(showError).withUserObject($('#event-div')).addEvent($('#event-name').val());
+    }
+
+    function markPresent(id)
+    {
+       $('#id-label').text("markpresent");
+        var sheet = SpreadsheetApp.getActiveSheet();
+        $('#id-error').text(sheet.getRange(lastRow, lastCol).getValue()).show();
+        //$('#id-label').text();
+    }
+
+
+    function updateFeedback(obj)
+    {
+      $('#label-bold').html("<b>" + obj['present'] + " out of " + obj['total'] + '('+Math.floor((obj['present'] / obj['total']) * 100) + '%)</b><br><b>Welcome, ' + obj['name'] + '!');
+    }
+
+    function idSuccess(retObj)
+    {
+      updateFeedback(retObj);
+      $('#id-number').val("");
+      $('#id-number').focus();
+    }
+
+    function idNotFound(msg, element)
+    {
+      element.children('div').children('input').prop('disabled', true);
+      $('#name-div').show();
+      $('#name').focus();
+    }
+
+    function validateIdInput()
+    {
+      var input = $('#id-number').val();
+      if (input.includes("E"))
+      {
+        $('#id-error').text("Invalid Input ID").show();
+        $('#id-number').val("");
+      }
+      else if(input.length == 16 || input.length == 9)
+      {
+        var id = input.match("[0-9]{9}");
+        if(id != null)
+        {
+          $('#id-error').text("").hide();
+          $('#id-number').val(id);
+          google.script.run.withSuccessHandler(idSuccess).withFailureHandler(idNotFound).withUserObject($('#ids-div')).present(id, $('#id-event-name').val());
+
+        }
+        else
+        {
+          $('#id-error').text("Invalid Input ID").show();
+        }
+      }
+      else
+      {
+        $('#id-error').text("Invalid Input ID").show();
+      }
+    }
+
+    function hideNameFields()
+    {
+      $('#ids-div').children('div').children('input').prop('disabled', false);
+      $('#name').val("");
+      $('#name-error').text("").hide();
+      $('#name-div').hide();
+      $('#id-number').focus();
+    }
+    function nameSuccess(retObj, element){
+      hideNameFields();
+      $('#id-number').val("");
+      $('#id-number').focus();
+      updateFeedback(retObj);
+    }
+
+    function submitName(){
+      google.script.run.withSuccessHandler(nameSuccess).withFailureHandler(showError).withUserObject($('#name-div')).addName($('#name').val(), $('#id-number').val(), $('#id-event-name').val());
+    }
+
+    $(function()
+    {
+      $('#eventSubmit').click(adder);
+      $('#idSubmit').click(validateIdInput);
+      $('#nameCancel').click(hideNameFields);
+      $('#nameSubmit').click(submitName);
+      $('#event-name').keyup(function(e){
+        if(e.keyCode == 13)
+        {
+          adder();
+        }
+      });
+      $('#id-number').keyup(function(e){
+      if(e.keyCode == 13)
+      {
+        validateIdInput();
+      }
+      });
+
+      $('#name').keyup(function(e){
+      if(e.keyCode == 13)
+      {
+        submitName();
+      }
+      });
+    });
+
+
+    function eventCreateSuccess(eventObject)
+    {
+       $('#event-div').children('input').prop('disabled', false);
+       $('#event-name').val("");
+       $('#error').hide();
+       $('#event-div').hide();
+       $('#id-event-name').val(eventObject['name']);
+       $('#ids-div').show();
+       if (eventObject['alreadyExisted'])
+       {
+         var feedback = {};
+         feedback['name'] = '----';
+         feedback['total'] = eventObject['total'];
+         feedback['present'] = eventObject['present'];
+         updateFeedback(feedback);
+       }
+    }
+
+
+      /**
+       * Inserts a div that contains an error message after a given element.
+       *
+       * @param msg The error message to display.
+       * @param element The element after which to display the error.
+       */
+      function showError(msg, element) {
+        $('#event-div').children('input').prop('disabled', false);
+        element.find( '.error').text(msg).show();
+      }
+    </script>
+  </body>
+</html>
